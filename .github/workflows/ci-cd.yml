@@ -30,28 +30,20 @@ jobs:
       run: npm test
 
   deploy:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
     steps:
     - uses: actions/checkout@v4
-        
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
     - name: Deploy to EC2
-      env:
-        EC2_HOST: ${{ secrets.EC2_HOST }}
-        EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
       run: |
-        # Create deployment script
-        echo '#!/bin/bash
-        cd ~/github-actions-demo
-        git pull origin main
-        npm install
-        pm2 restart app || pm2 start app.js --name app' > deploy.sh
-        
-        # Copy deployment script and execute
-        scp -o StrictHostKeyChecking=no deploy.sh ${EC2_USERNAME}@${EC2_HOST}:~/deploy.sh
-        ssh -o StrictHostKeyChecking=no ${EC2_USERNAME}@${EC2_HOST} '
-          chmod +x ~/deploy.sh
-          ~/deploy.sh
-        '
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd ~/your-project-directory
+          git pull origin main
+          npm install
+          pm2 restart app || pm2 start app.js
+        EOF
